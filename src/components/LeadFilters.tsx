@@ -80,7 +80,7 @@ export default function LeadFilters({
   const [searchQuery, setSearchQuery] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const handleFilterChange = (key: keyof LeadFilter, value: any) => {
+  const handleFilterChange = (key: keyof LeadFilter, value: unknown) => {
     onFiltersChange({
       ...filters,
       [key]: value,

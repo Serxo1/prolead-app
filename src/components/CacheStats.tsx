@@ -20,8 +20,10 @@ export default function CacheStats() {
     const placesStats = PlacesApiService.getCacheStats();
     
     setStats({
-      ...generalStats,
-      placesKeys: placesStats.placesKeys,
+      total: typeof generalStats.total === 'number' ? generalStats.total : 0,
+      valid: typeof generalStats.valid === 'number' ? generalStats.valid : 0,
+      expired: typeof generalStats.expired === 'number' ? generalStats.expired : 0,
+      placesKeys: typeof placesStats.placesKeys === 'number' ? placesStats.placesKeys : 0,
     });
   };
 

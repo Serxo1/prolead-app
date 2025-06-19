@@ -63,15 +63,15 @@ export class GoogleMapsService {
       this.placesService = new google.maps.places.PlacesService(this.map);
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const request: google.maps.places.PlaceSearchRequest = {
         location: new google.maps.LatLng(location.lat, location.lng),
         radius,
-        type: type as any,
+        type: type as string,
       };
 
-      this.placesService!.nearbySearch(request, (results, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+      this.placesService!.nearbySearch(request, (results) => {
+        if (results) {
           const places: GooglePlaceResult[] = results.map(place => ({
             place_id: place.place_id!,
             name: place.name!,
@@ -98,8 +98,6 @@ export class GoogleMapsService {
             } : undefined,
           }));
           resolve(places);
-        } else {
-          reject(new Error(`Places search failed: ${status}`));
         }
       });
     });
@@ -114,7 +112,7 @@ export class GoogleMapsService {
       this.placesService = new google.maps.places.PlacesService(this.map);
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const request: google.maps.places.PlaceDetailsRequest = {
         placeId,
         fields: [
@@ -133,8 +131,8 @@ export class GoogleMapsService {
         ],
       };
 
-      this.placesService!.getDetails(request, (place, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+      this.placesService!.getDetails(request, (place) => {
+        if (place) {
           const placeResult: GooglePlaceResult = {
             place_id: place.place_id!,
             name: place.name!,
@@ -173,7 +171,7 @@ export class GoogleMapsService {
       this.autocompleteService = new google.maps.places.AutocompleteService();
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const request: google.maps.places.AutocompletionRequest = {
         input,
         ...(location && {
@@ -182,8 +180,8 @@ export class GoogleMapsService {
         }),
       };
 
-      this.autocompleteService!.getPlacePredictions(request, (predictions, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+      this.autocompleteService!.getPlacePredictions(request, (predictions) => {
+        if (predictions) {
           resolve(predictions);
         } else {
           resolve([]);

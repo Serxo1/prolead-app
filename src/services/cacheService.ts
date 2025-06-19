@@ -5,7 +5,7 @@ interface CacheItem<T> {
 }
 
 export class CacheService {
-  private static cache = new Map<string, CacheItem<any>>();
+  private static cache = new Map<string, CacheItem<unknown>>();
   private static defaultTTL = 5 * 60 * 1000; // 5 minutes default
 
   static set<T>(key: string, data: T, ttl: number = this.defaultTTL): void {
@@ -29,7 +29,7 @@ export class CacheService {
       return null;
     }
 
-    return item.data;
+    return item.data as T;
   }
 
   static has(key: string): boolean {
@@ -61,7 +61,7 @@ export class CacheService {
   }
 
   // Utility method to generate cache keys
-  static generateKey(prefix: string, params: Record<string, any>): string {
+  static generateKey(prefix: string, params: Record<string, unknown>): string {
     const sortedParams = Object.keys(params)
       .sort()
       .map(key => `${key}:${params[key]}`)
@@ -71,7 +71,7 @@ export class CacheService {
   }
 
   // Method to get cache statistics
-  static getStats() {
+  static getStats(): Record<string, unknown> {
     const now = Date.now();
     let validItems = 0;
     let expiredItems = 0;

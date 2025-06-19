@@ -1,5 +1,7 @@
 import { LeadService } from '@/services/leadService';
-import sampleLeads from '@/data/sampleLeads.json';
+import rawSampleLeads from '@/data/sampleLeads.json';
+
+const sampleLeads: Record<string, unknown>[] = rawSampleLeads as Record<string, unknown>[];
 
 export const loadSampleData = () => {
   // Verifica se já existem leads no localStorage
@@ -9,27 +11,27 @@ export const loadSampleData = () => {
     // Carrega os dados de exemplo apenas se não houver leads existentes
     sampleLeads.forEach((lead) => {
       LeadService.createLead({
-        name: lead.name,
-        email: lead.email || undefined,
-        phone: lead.phone || undefined,
-        website: lead.website || undefined,
-        address: lead.address,
-        latitude: lead.latitude,
-        longitude: lead.longitude,
-        businessType: lead.businessType || undefined,
-        industry: lead.industry || undefined,
-        description: lead.description || undefined,
-        rating: lead.rating || undefined,
-        reviews: lead.reviews || undefined,
-        photos: lead.photos || undefined,
-        placeId: lead.placeId || undefined,
-        notes: lead.notes || undefined,
+        name: lead.name as string,
+        email: lead.email as string || undefined,
+        phone: lead.phone as string || undefined,
+        website: lead.website as string || undefined,
+        address: lead.address as string,
+        latitude: lead.latitude as number,
+        longitude: lead.longitude as number,
+        businessType: lead.businessType as string || undefined,
+        industry: lead.industry as string || undefined,
+        description: lead.description as string || undefined,
+        rating: lead.rating as number || undefined,
+        reviews: lead.reviews as number || undefined,
+        photos: lead.photos as string[] || undefined,
+        placeId: lead.placeId as string || undefined,
+        notes: lead.notes as string || undefined,
         status: lead.status as 'new' | 'contacted' | 'qualified' | 'converted' | 'lost',
-        tags: lead.tags || undefined,
-        contactPerson: lead.contactPerson || undefined,
-        companySize: lead.companySize || undefined,
-        revenue: lead.revenue || undefined,
-        lastContact: lead.lastContact || undefined,
+        tags: lead.tags as string[] || undefined,
+        contactPerson: lead.contactPerson as string || undefined,
+        companySize: lead.companySize as string || undefined,
+        revenue: lead.revenue as string || undefined,
+        lastContact: lead.lastContact as string || undefined,
       });
     });
     

@@ -1,88 +1,47 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Lead, LeadFilter, GooglePlaceResult } from '@/types/lead';
 import { LeadService } from '@/services/leadService';
 import { PlacesApiService } from '@/services/placesApiService';
 import { LeadEnrichmentService, EnrichmentResult } from '@/services/leadEnrichmentService';
 import { CacheService } from '@/services/cacheService';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { 
-  Search, 
-  MapPin, 
-  Plus, 
-  Star, 
-  Phone, 
-  Globe, 
-  Building, 
-  Download, 
-  Upload,
-  Filter,
-  List,
-  RefreshCw,
-  Zap,
-  Database
-} from 'lucide-react';
 import Map from './Map';
 import LeadFilters from './LeadFilters';
 import LeadDetails from './LeadDetails';
 import CacheStats from './CacheStats';
 import { LeadEnrichment } from './LeadEnrichment';
 import { ThemeToggle } from './ThemeToggle';
+import { Upload, Download, Database, Zap, MapPin, Plus, Star, List } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 export default function LeadCapture() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [filteredLeads, setFilteredLeads] = useState<Lead[]>([]);
   const [filters, setFilters] = useState<LeadFilter>({});
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<GooglePlaceResult[]>([]);
   const [mapCenter, setMapCenter] = useState({ lat: -23.5505, lng: -46.6333 }); // São Paulo
-  const [enrichmentResults, setEnrichmentResults] = useState<EnrichmentResult[]>([]);
-  const [cacheStats, setCacheStats] = useState<any>(null);
 
   useEffect(() => {
     loadLeads();
-    updateCacheStats();
   }, []);
+
+  const applyFilters = useCallback(() => {
+    const filtered = LeadService.filterLeads(filters);
+    setFilteredLeads(filtered);
+  }, [filters]);
 
   useEffect(() => {
     applyFilters();
-  }, [leads, filters, searchQuery]);
+  }, [applyFilters]);
 
   const loadLeads = () => {
     const allLeads = LeadService.getAllLeads();
     setLeads(allLeads);
-  };
-
-  const updateCacheStats = () => {
-    const stats = CacheService.getStats();
-    const placesStats = PlacesApiService.getCacheStats();
-    setCacheStats({ ...stats, ...placesStats });
-  };
-
-  const applyFilters = () => {
-    let filtered = LeadService.filterLeads(filters);
-    
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(lead => 
-        lead.name.toLowerCase().includes(query) ||
-        lead.address.toLowerCase().includes(query) ||
-        lead.businessType?.toLowerCase().includes(query) ||
-        lead.industry?.toLowerCase().includes(query) ||
-        lead.contactPerson?.toLowerCase().includes(query) ||
-        lead.notes?.toLowerCase().includes(query)
-      );
-    }
-    
-    setFilteredLeads(filtered);
   };
 
   const handleSearch = async (query: string) => {
@@ -91,7 +50,6 @@ export default function LeadCapture() {
       return;
     }
 
-    setIsSearching(true);
     try {
       // Buscar lugares próximos usando Places API
       const results = await PlacesApiService.searchNearbyPlaces(mapCenter, 5000);
@@ -104,12 +62,9 @@ export default function LeadCapture() {
       );
       
       setSearchResults(filteredResults);
-      updateCacheStats();
     } catch (error) {
       console.error('Error searching places:', error);
       setSearchResults([]);
-    } finally {
-      setIsSearching(false);
     }
   };
 
@@ -139,9 +94,6 @@ export default function LeadCapture() {
     const createdLead = LeadService.createLead(newLead);
     setLeads(prev => [...prev, createdLead]);
     setSearchResults([]);
-    
-    // Atualizar cache stats
-    updateCacheStats();
   };
 
   const handleLeadUpdate = (updatedLead: Lead) => {
@@ -177,8 +129,6 @@ export default function LeadCapture() {
   };
 
   const handleEnrichmentComplete = async (results: EnrichmentResult[]) => {
-    setEnrichmentResults(results);
-    
     // Aplicar dados enriquecidos aos leads
     for (const result of results) {
       if (result.success && result.data) {
@@ -199,11 +149,6 @@ export default function LeadCapture() {
           // Atualizar pessoa de contato se não existir
           if (result.data.contactPerson && !lead.contactPerson) {
             updates.contactPerson = result.data.contactPerson;
-          }
-          
-          // Atualizar descrição se não existir
-          if (result.data.description && !lead.description) {
-            updates.description = result.data.description;
           }
           
           // Aplicar atualizações se houver
@@ -270,8 +215,6 @@ export default function LeadCapture() {
   const clearCache = () => {
     CacheService.clear();
     PlacesApiService.clearCache();
-    LeadEnrichmentService.clearCache();
-    updateCacheStats();
     alert('Cache limpo com sucesso!');
   };
 

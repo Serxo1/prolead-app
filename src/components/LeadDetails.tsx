@@ -99,7 +99,7 @@ export default function LeadDetails({ lead, onClose, onLeadUpdate, onLeadDelete 
     setIsDeleteDialogOpen(false);
   };
 
-  const handleFieldChange = (field: keyof Lead, value: any) => {
+  const handleFieldChange = (field: keyof Lead, value: unknown) => {
     setEditedLead(prev => prev ? { ...prev, [field]: value } : null);
   };
 
@@ -163,7 +163,7 @@ export default function LeadDetails({ lead, onClose, onLeadUpdate, onLeadDelete 
                   <DialogHeader>
                     <DialogTitle>Confirmar exclusão</DialogTitle>
                   </DialogHeader>
-                  <p>Tem certeza que deseja excluir o lead "{lead.name}"?</p>
+                  <p>Tem certeza que deseja excluir o lead &quot;{lead.name}&quot;?</p>
                   <div className="flex gap-2 justify-end">
                     <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
                       Cancelar

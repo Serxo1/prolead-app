@@ -6,7 +6,6 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
-  MapPin, 
   Star, 
   Phone, 
   Globe, 
@@ -19,6 +18,12 @@ interface MapProps {
   leads: Lead[];
   onLeadSelect: (lead: Lead) => void;
   center?: { lat: number; lng: number };
+}
+
+declare global {
+  interface Window {
+    openLeadDetails?: (leadId: string) => void;
+  }
 }
 
 export default function Map({ leads, onLeadSelect, center }: MapProps) {
@@ -41,7 +46,6 @@ export default function Map({ leads, onLeadSelect, center }: MapProps) {
     let markers: google.maps.Marker[] = [];
     const loadMap = async () => {
       try {
-        // @ts-ignore
         const { Loader } = await import('@googlemaps/js-api-loader');
         const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
         if (!apiKey) throw new Error('API KEY não encontrada');
@@ -164,77 +168,11 @@ export default function Map({ leads, onLeadSelect, center }: MapProps) {
             },
           });
 
-          // Criar conteúdo do popup bonito
-          const popupContent = `
-            <div style="
-              padding: 16px; 
-              min-width: 280px; 
-              font-family: system-ui, -apple-system, sans-serif;
-              background: ${isDark ? '#1f2937' : '#ffffff'};
-              color: ${isDark ? '#f9fafb' : '#1f2937'};
-              border-radius: 12px;
-              box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-              border: 1px solid ${isDark ? '#374151' : '#e5e7eb'};
-            ">
-              <div style="
-                font-weight: 600; 
-                font-size: 16px; 
-                margin-bottom: 8px; 
-                color: ${isDark ? '#f9fafb' : '#1f2937'};
-              ">${lead.name}</div>
-              
-              <div style="
-                font-size: 14px; 
-                color: ${isDark ? '#9ca3af' : '#6b7280'}; 
-                margin-bottom: 12px;
-                line-height: 1.4;
-              ">${lead.address}</div>
-              
-              ${lead.rating ? `
-                <div style="
-                  display: flex; 
-                  align-items: center; 
-                  gap: 4px; 
-                  margin-bottom: 12px;
-                  color: ${isDark ? '#fbbf24' : '#f59e0b'};
-                ">
-                  <span style="font-size: 14px;">★</span>
-                  <span style="font-size: 14px;">${lead.rating} (${lead.reviews} avaliações)</span>
-                </div>
-              ` : ''}
-              
-              <button 
-                onclick="window.openLeadDetails('${lead.id}')" 
-                style="
-                  background: #3B82F6; 
-                  color: white; 
-                  border: none; 
-                  padding: 8px 16px; 
-                  border-radius: 6px; 
-                  font-size: 14px; 
-                  font-weight: 500; 
-                  cursor: pointer; 
-                  width: 100%;
-                  transition: background-color 0.2s;
-                "
-                onmouseover="this.style.background='#2563EB'"
-                onmouseout="this.style.background='#3B82F6'"
-              >
-                Ver detalhes
-              </button>
-            </div>
-          `;
-
-          const infoWindow = new window.google.maps.InfoWindow({
-            content: popupContent,
-          });
-
           marker.addListener('click', () => {
             // Fechar todos os outros popups
             markers.forEach(m => {
               if (m !== marker) {
-                // @ts-ignore
-                m.infoWindow?.close();
+                // Linha removida: m.infoWindow?.close();
               }
             });
             
@@ -249,11 +187,11 @@ export default function Map({ leads, onLeadSelect, center }: MapProps) {
         markersRef.current = markers;
 
         // Configurar função global para abrir detalhes completos
-        // @ts-ignore
         window.openLeadDetails = (leadId: string) => {
           const lead = leads.find(l => l.id === leadId);
           if (lead) {
-            onLeadSelect(lead);
+            setSelectedLead(lead);
+            setIsQuickDialogOpen(true);
           }
         };
 
@@ -266,10 +204,9 @@ export default function Map({ leads, onLeadSelect, center }: MapProps) {
     loadMap();
 
     return () => {
-      // Limpar marcadores
+      // Cleanup
       markersRef.current.forEach(marker => marker.setMap(null));
       markersRef.current = [];
-      // @ts-ignore
       delete window.openLeadDetails;
     };
   }, [isClient, leads, center, isDark, onLeadSelect]);
