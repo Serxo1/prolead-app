@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Lead } from '@/types/lead';
+import { GoogleMapsService } from '@/services/googleMapsService';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,8 @@ interface MapProps {
   leads: Lead[];
   onLeadSelect: (lead: Lead) => void;
   center?: { lat: number; lng: number };
+  searchRadius?: number;
+  showSearchArea?: boolean;
 }
 
 declare global {
@@ -26,7 +29,7 @@ declare global {
   }
 }
 
-export default function Map({ leads, onLeadSelect, center }: MapProps) {
+export default function Map({ leads, onLeadSelect, center, searchRadius, showSearchArea }: MapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
@@ -34,11 +37,50 @@ export default function Map({ leads, onLeadSelect, center }: MapProps) {
   const [isQuickDialogOpen, setIsQuickDialogOpen] = useState(false);
   const markersRef = useRef<google.maps.Marker[]>([]);
   const mapInstance = useRef<google.maps.Map | null>(null);
+  const searchCircleRef = useRef<google.maps.Circle | null>(null);
   const { isDark } = useTheme();
 
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Função para atualizar o círculo de busca
+  const updateSearchCircle = () => {
+    if (!mapInstance.current || !showSearchArea || !searchRadius) {
+      // Remover círculo se não deve ser mostrado
+      if (searchCircleRef.current) {
+        searchCircleRef.current.setMap(null);
+        searchCircleRef.current = null;
+      }
+      return;
+    }
+
+    // Remover círculo anterior se existir
+    if (searchCircleRef.current) {
+      searchCircleRef.current.setMap(null);
+    }
+
+    // Criar novo círculo
+    searchCircleRef.current = new google.maps.Circle({
+      strokeColor: isDark ? '#3B82F6' : '#2563EB',
+      strokeOpacity: 0.8,
+      strokeWeight: 2,
+      fillColor: isDark ? '#3B82F6' : '#2563EB',
+      fillOpacity: 0.1,
+      map: mapInstance.current,
+      center: center || { lat: -23.5505, lng: -46.6333 },
+      radius: searchRadius,
+    });
+
+    console.log('🔵 Círculo de busca atualizado:', { center, radius: searchRadius });
+  };
+
+  // Atualizar círculo quando props mudarem
+  useEffect(() => {
+    if (mapInstance.current) {
+      updateSearchCircle();
+    }
+  }, [center, searchRadius, showSearchArea, isDark]);
 
   useEffect(() => {
     if (!isClient || !mapRef.current) return;
@@ -46,14 +88,13 @@ export default function Map({ leads, onLeadSelect, center }: MapProps) {
     let markers: google.maps.Marker[] = [];
     const loadMap = async () => {
       try {
-        const { Loader } = await import('@googlemaps/js-api-loader');
-        const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-        if (!apiKey) throw new Error('API KEY não encontrada');
-        const loader = new Loader({
-          apiKey,
-          version: 'weekly',
-        });
-        await loader.load();
+        // Inicializar o GoogleMapsService primeiro
+        await GoogleMapsService.initialize();
+        
+        // Verificar se a inicialização foi bem-sucedida
+        if (!GoogleMapsService['isInitialized']) {
+          throw new Error('Falha na inicialização do Google Maps');
+        }
         
         // Estilos do mapa baseados no tema
         const mapStyles = isDark ? [
@@ -137,34 +178,42 @@ export default function Map({ leads, onLeadSelect, center }: MapProps) {
           },
         ] : [];
 
-        map = new window.google.maps.Map(mapRef.current!, {
-          center: center || { lat: -23.5505, lng: -46.6333 },
-          zoom: 12,
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: false,
-          zoomControl: true,
-          styles: mapStyles,
-        });
+        // Criar o mapa usando o GoogleMapsService
+        map = GoogleMapsService.createMap(mapRef.current!, center || { lat: -23.5505, lng: -46.6333 });
+        
+        // Aplicar estilos se necessário
+        if (mapStyles.length > 0) {
+          map.setOptions({ styles: mapStyles });
+        }
+        
         mapInstance.current = map;
+        
+        // Criar círculo de busca se necessário
+        updateSearchCircle();
         
         // Adiciona marcadores com popup bonito
         markers = leads.map((lead) => {
-          const marker = new window.google.maps.Marker({
+          const marker = new google.maps.Marker({
             position: { lat: lead.latitude, lng: lead.longitude },
             map,
             title: lead.name,
             icon: {
               url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="16" cy="16" r="16" fill="${isDark ? '#1f2937' : '#ffffff'}"/>
-                  <path d="M16 4C10.48 4 6 8.48 6 14c0 7 10 17 10 17s10-10 10-17c0-5.52-4.48-10-10-10z" fill="#3B82F6"/>
-                  <circle cx="16" cy="14" r="3" fill="white"/>
-                  <circle cx="16" cy="16" r="16" stroke="${isDark ? '#374151' : '#e5e7eb'}" stroke-width="2" fill="none"/>
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <!-- Sombra -->
+                  <ellipse cx="20" cy="37" rx="8" ry="3" fill="rgba(0,0,0,0.2)"/>
+                  <!-- Pin principal -->
+                  <path d="M20 2C13.37 2 8 7.37 8 14c0 8.75 12 22 12 22s12-13.25 12-22c0-6.63-5.37-12-12-12z" fill="#EF4444" stroke="#B91C1C" stroke-width="2"/>
+                  <!-- Círculo interno -->
+                  <circle cx="20" cy="14" r="5" fill="white"/>
+                  <!-- Ícone de lead -->
+                  <circle cx="20" cy="14" r="2" fill="#EF4444"/>
+                  <!-- Brilho -->
+                  <ellipse cx="17" cy="11" rx="2" ry="3" fill="rgba(255,255,255,0.3)"/>
                 </svg>
               `),
-              scaledSize: new window.google.maps.Size(32, 32),
-              anchor: new window.google.maps.Point(16, 32),
+              scaledSize: new google.maps.Size(40, 40),
+              anchor: new google.maps.Point(20, 36),
             },
           });
 

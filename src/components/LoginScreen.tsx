@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import Link from 'next/link';
 
 export default function LoginScreen() {
   const [password, setPassword] = useState('');
@@ -25,8 +26,8 @@ export default function LoginScreen() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="max-w-md w-full space-y-8 p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
+      <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <div className="mx-auto h-16 w-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center">
             <svg
@@ -51,7 +52,7 @@ export default function LoginScreen() {
           </p>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form className="space-y-6" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="password" className="sr-only">
               Código de Acesso
@@ -106,10 +107,17 @@ export default function LoginScreen() {
           </div>
         </form>
 
-        <div className="text-center">
+        <div className="text-center space-y-2">
           <p className="text-xs text-gray-500 dark:text-gray-400">
             Sistema interno de gerenciamento de leads
           </p>
+          <Link 
+            href="/wordle-secret" 
+            className="text-[8px] text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-200 opacity-30 hover:opacity-60"
+            title="Página secreta"
+          >
+            v1.0.0
+          </Link>
         </div>
       </div>
     </div>

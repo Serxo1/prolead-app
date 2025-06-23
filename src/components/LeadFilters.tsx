@@ -14,8 +14,10 @@ interface LeadFiltersProps {
   filters: LeadFilter;
   onFiltersChange: (filters: LeadFilter) => void;
   onSearch: (query: string) => void;
+  onAddressSearch: (address: string) => void;
   onRadiusChange?: (radius: number) => void;
   onCenterChange?: (center: { lat: number; lng: number }) => void;
+  isSearching?: boolean;
 }
 
 const BUSINESS_TYPES = [
@@ -74,10 +76,12 @@ export default function LeadFilters({
   filters, 
   onFiltersChange, 
   onSearch,
+  onAddressSearch,
   onRadiusChange,
-  onCenterChange 
+  onCenterChange,
+  isSearching = false
 }: LeadFiltersProps) {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [addressQuery, setAddressQuery] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
 
   const handleFilterChange = (key: keyof LeadFilter, value: unknown) => {
@@ -87,16 +91,20 @@ export default function LeadFilters({
     });
   };
 
-  const handleSearch = () => {
-    onSearch(searchQuery);
+  const handleAddressSearchClick = () => {
+    console.log('📍 Buscando endereço:', addressQuery);
+    if (addressQuery.trim()) {
+      onAddressSearch(addressQuery.trim());
+    }
   };
 
   const clearFilters = () => {
     onFiltersChange({});
-    setSearchQuery('');
+    setAddressQuery('');
+    onSearch('');
   };
 
-  const hasActiveFilters = Object.keys(filters).length > 0 || searchQuery;
+  const hasActiveFilters = Object.keys(filters).length > 0 || addressQuery;
 
   return (
     <Card className="mb-6">
@@ -117,32 +125,108 @@ export default function LeadFilters({
       </CardHeader>
       
       <CardContent>
-        {/* Search Bar */}
+        {/* Address Search Bar */}
         <div className="flex gap-2 mb-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Buscar leads por nome, endereço..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="Digite um endereço para definir a região de busca..."
+              value={addressQuery}
+              onChange={(e) => setAddressQuery(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleAddressSearchClick()}
               className="pl-10"
             />
           </div>
-          <Button onClick={handleSearch}>
-            Buscar
+          <Button 
+            onClick={handleAddressSearchClick}
+            disabled={!addressQuery.trim()}
+            variant="outline"
+          >
+            <MapPin className="h-4 w-4 mr-2" />
+            Localizar
+          </Button>
+        </div>
+
+        {/* Quick Search Buttons */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          <span className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center">
+            Tipo de negócio:
+          </span>
+          {BUSINESS_TYPES.slice(0, 6).map((type) => (
+            <Button
+              key={type}
+              variant={filters.businessType === type ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                handleFilterChange('businessType', filters.businessType === type ? undefined : type);
+                // Removido: busca automática
+              }}
+              className="text-xs"
+            >
+              {type.charAt(0).toUpperCase() + type.slice(1)}
+            </Button>
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-xs"
+          >
+            {isExpanded ? 'Menos opções' : 'Mais opções'}
+          </Button>
+        </div>
+
+        {/* Search Button */}
+        <div className="flex justify-center mb-4">
+          <Button 
+            onClick={() => {
+              // Buscar com o tipo selecionado ou 'all' para todos os tipos
+              const searchType = filters.businessType || 'all';
+              onSearch(searchType);
+            }}
+            size="lg"
+            className="px-8"
+            disabled={isSearching}
+          >
+            {isSearching ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Buscando...
+              </>
+            ) : (
+              <>
+                <Search className="h-5 w-5 mr-2" />
+                Buscar Leads Próximos
+                {filters.searchRadius && (
+                  <span className="ml-2 text-xs opacity-75">
+                    (raio: {RADIUS_OPTIONS.find(r => r.value === filters.searchRadius)?.label})
+                  </span>
+                )}
+              </>
+            )}
           </Button>
         </div>
 
         {/* Active Filters Display */}
         {hasActiveFilters && (
           <div className="flex flex-wrap gap-2 mb-4">
-            {searchQuery && (
+            {addressQuery && (
               <Badge variant="secondary" className="flex items-center gap-1">
-                Busca: {searchQuery}
+                <MapPin className="h-3 w-3" />
+                Região: {addressQuery}
                 <X 
                   className="h-3 w-3 cursor-pointer" 
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => setAddressQuery('')}
+                />
+              </Badge>
+            )}
+            {filters.searchQuery && (
+              <Badge variant="secondary" className="flex items-center gap-1">
+                <Search className="h-3 w-3" />
+                Busca: {filters.searchQuery}
+                <X 
+                  className="h-3 w-3 cursor-pointer" 
+                  onClick={() => handleFilterChange('searchQuery', undefined)}
                 />
               </Badge>
             )}
@@ -192,7 +276,7 @@ export default function LeadFilters({
                 />
               </Badge>
             )}
-            {filters.hasPhone && (
+            {filters.hasPhone === true && (
               <Badge variant="secondary" className="flex items-center gap-1">
                 <Phone className="h-3 w-3" />
                 Com telefone
@@ -202,7 +286,17 @@ export default function LeadFilters({
                 />
               </Badge>
             )}
-            {filters.hasEmail && (
+            {filters.hasPhone === false && (
+              <Badge variant="destructive" className="flex items-center gap-1">
+                <Phone className="h-3 w-3" />
+                Sem telefone
+                <X 
+                  className="h-3 w-3 cursor-pointer" 
+                  onClick={() => handleFilterChange('hasPhone', undefined)}
+                />
+              </Badge>
+            )}
+            {filters.hasEmail === true && (
               <Badge variant="secondary" className="flex items-center gap-1">
                 <Mail className="h-3 w-3" />
                 Com email
@@ -212,7 +306,17 @@ export default function LeadFilters({
                 />
               </Badge>
             )}
-            {filters.hasWebsite && (
+            {filters.hasEmail === false && (
+              <Badge variant="destructive" className="flex items-center gap-1">
+                <Mail className="h-3 w-3" />
+                Sem email
+                <X 
+                  className="h-3 w-3 cursor-pointer" 
+                  onClick={() => handleFilterChange('hasEmail', undefined)}
+                />
+              </Badge>
+            )}
+            {filters.hasWebsite === true && (
               <Badge variant="secondary" className="flex items-center gap-1">
                 <Globe className="h-3 w-3" />
                 Com website
@@ -222,10 +326,30 @@ export default function LeadFilters({
                 />
               </Badge>
             )}
-            {filters.hasContactPerson && (
+            {filters.hasWebsite === false && (
+              <Badge variant="destructive" className="flex items-center gap-1">
+                <Globe className="h-3 w-3" />
+                Sem website
+                <X 
+                  className="h-3 w-3 cursor-pointer" 
+                  onClick={() => handleFilterChange('hasWebsite', undefined)}
+                />
+              </Badge>
+            )}
+            {filters.hasContactPerson === true && (
               <Badge variant="secondary" className="flex items-center gap-1">
                 <User className="h-3 w-3" />
                 Com contato
+                <X 
+                  className="h-3 w-3 cursor-pointer" 
+                  onClick={() => handleFilterChange('hasContactPerson', undefined)}
+                />
+              </Badge>
+            )}
+            {filters.hasContactPerson === false && (
+              <Badge variant="destructive" className="flex items-center gap-1">
+                <User className="h-3 w-3" />
+                Sem contato
                 <X 
                   className="h-3 w-3 cursor-pointer" 
                   onClick={() => handleFilterChange('hasContactPerson', undefined)}
@@ -355,53 +479,113 @@ export default function LeadFilters({
             {/* Contact Filters */}
             <div className="border-t pt-4">
               <label className="text-sm font-medium mb-2 block">Meios de Contato</label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="hasPhone"
-                    checked={filters.hasPhone || false}
-                    onCheckedChange={(checked: boolean) => handleFilterChange('hasPhone', checked)}
-                  />
-                  <label htmlFor="hasPhone" className="text-sm flex items-center gap-2">
-                    <Phone className="h-4 w-4" />
-                    Possui telefone
-                  </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Possui Contatos */}
+                <div>
+                  <h4 className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">POSSUI</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="hasPhone"
+                        checked={filters.hasPhone === true}
+                        onCheckedChange={(checked: boolean) => handleFilterChange('hasPhone', checked ? true : undefined)}
+                      />
+                      <label htmlFor="hasPhone" className="text-sm flex items-center gap-2">
+                        <Phone className="h-4 w-4" />
+                        Telefone
+                      </label>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="hasEmail"
+                        checked={filters.hasEmail === true}
+                        onCheckedChange={(checked: boolean) => handleFilterChange('hasEmail', checked ? true : undefined)}
+                      />
+                      <label htmlFor="hasEmail" className="text-sm flex items-center gap-2">
+                        <Mail className="h-4 w-4" />
+                        Email
+                      </label>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="hasWebsite"
+                        checked={filters.hasWebsite === true}
+                        onCheckedChange={(checked: boolean) => handleFilterChange('hasWebsite', checked ? true : undefined)}
+                      />
+                      <label htmlFor="hasWebsite" className="text-sm flex items-center gap-2">
+                        <Globe className="h-4 w-4" />
+                        Website
+                      </label>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="hasContactPerson"
+                        checked={filters.hasContactPerson === true}
+                        onCheckedChange={(checked: boolean) => handleFilterChange('hasContactPerson', checked ? true : undefined)}
+                      />
+                      <label htmlFor="hasContactPerson" className="text-sm flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        Pessoa de contato
+                      </label>
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="hasEmail"
-                    checked={filters.hasEmail || false}
-                    onCheckedChange={(checked: boolean) => handleFilterChange('hasEmail', checked)}
-                  />
-                  <label htmlFor="hasEmail" className="text-sm flex items-center gap-2">
-                    <Mail className="h-4 w-4" />
-                    Possui email
-                  </label>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="hasWebsite"
-                    checked={filters.hasWebsite || false}
-                    onCheckedChange={(checked: boolean) => handleFilterChange('hasWebsite', checked)}
-                  />
-                  <label htmlFor="hasWebsite" className="text-sm flex items-center gap-2">
-                    <Globe className="h-4 w-4" />
-                    Possui website
-                  </label>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="hasContactPerson"
-                    checked={filters.hasContactPerson || false}
-                    onCheckedChange={(checked: boolean) => handleFilterChange('hasContactPerson', checked)}
-                  />
-                  <label htmlFor="hasContactPerson" className="text-sm flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    Possui contato
-                  </label>
+
+                {/* Não Possui Contatos */}
+                <div>
+                  <h4 className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">NÃO POSSUI</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="noPhone"
+                        checked={filters.hasPhone === false}
+                        onCheckedChange={(checked: boolean) => handleFilterChange('hasPhone', checked ? false : undefined)}
+                      />
+                      <label htmlFor="noPhone" className="text-sm flex items-center gap-2">
+                        <Phone className="h-4 w-4 opacity-50" />
+                        Telefone
+                      </label>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="noEmail"
+                        checked={filters.hasEmail === false}
+                        onCheckedChange={(checked: boolean) => handleFilterChange('hasEmail', checked ? false : undefined)}
+                      />
+                      <label htmlFor="noEmail" className="text-sm flex items-center gap-2">
+                        <Mail className="h-4 w-4 opacity-50" />
+                        Email
+                      </label>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="noWebsite"
+                        checked={filters.hasWebsite === false}
+                        onCheckedChange={(checked: boolean) => handleFilterChange('hasWebsite', checked ? false : undefined)}
+                      />
+                      <label htmlFor="noWebsite" className="text-sm flex items-center gap-2">
+                        <Globe className="h-4 w-4 opacity-50" />
+                        Website
+                      </label>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="noContactPerson"
+                        checked={filters.hasContactPerson === false}
+                        onCheckedChange={(checked: boolean) => handleFilterChange('hasContactPerson', checked ? false : undefined)}
+                      />
+                      <label htmlFor="noContactPerson" className="text-sm flex items-center gap-2">
+                        <User className="h-4 w-4 opacity-50" />
+                        Pessoa de contato
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

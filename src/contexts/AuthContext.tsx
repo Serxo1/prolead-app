@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { WordleService } from '@/services/wordleService';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -26,8 +27,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (password: string): Promise<boolean> => {
     try {
-      // Obter a palavra do Wordle do dia
-      const wordleWord = await getWordleWordOfTheDay();
+      // Obter a palavra do Wordle do dia usando o novo serviço
+      const wordleWord = await WordleService.getWordleWordOfTheDay();
       
       if (password.toLowerCase() === wordleWord.toLowerCase()) {
         setIsAuthenticated(true);
@@ -59,25 +60,4 @@ export function useAuth() {
     throw new Error('useAuth deve ser usado dentro de um AuthProvider');
   }
   return context;
-}
-
-// Função para obter a palavra do Wordle do dia
-async function getWordleWordOfTheDay(): Promise<string> {
-  try {
-    // Usar a API gratuita do New York Times
-    const today = new Date();
-    const dateString = today.toISOString().split('T')[0]; // Formato YYYY-MM-DD
-    const url = `https://www.nytimes.com/svc/wordle/v2/${dateString}.json`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('API não respondeu corretamente');
-    const data = await response.json();
-    if (!data.solution || typeof data.solution !== 'string') {
-      throw new Error('Formato inesperado da resposta');
-    }
-    return data.solution;
-  } catch (error) {
-    console.error('Erro ao obter palavra do Wordle:', error);
-    // Fallback: usar uma palavra fixa caso a API falhe
-    return 'prolead';
-  }
 } 

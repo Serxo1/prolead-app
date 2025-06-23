@@ -14,21 +14,25 @@ export class CacheService {
       timestamp: Date.now(),
       ttl,
     });
+    console.log(`💾 Cache SET: ${key} (TTL: ${ttl}ms, Total items: ${this.cache.size})`);
   }
 
   static get<T>(key: string): T | null {
     const item = this.cache.get(key);
     
     if (!item) {
+      console.log(`💾 Cache MISS: ${key}`);
       return null;
     }
 
     // Check if item has expired
     if (Date.now() - item.timestamp > item.ttl) {
       this.cache.delete(key);
+      console.log(`💾 Cache EXPIRED: ${key}`);
       return null;
     }
 
+    console.log(`💾 Cache HIT: ${key}`);
     return item.data as T;
   }
 
@@ -75,20 +79,29 @@ export class CacheService {
     const now = Date.now();
     let validItems = 0;
     let expiredItems = 0;
+    const expiredKeys: string[] = [];
 
+    // First pass: count items and collect expired keys
     for (const [key, item] of this.cache.entries()) {
       if (now - item.timestamp > item.ttl) {
         expiredItems++;
-        this.cache.delete(key);
+        expiredKeys.push(key);
       } else {
         validItems++;
       }
     }
 
+    // Second pass: remove expired items
+    expiredKeys.forEach(key => this.cache.delete(key));
+
+    const totalItems = validItems + expiredItems;
+
     return {
-      total: this.cache.size,
+      total: totalItems,
       valid: validItems,
       expired: expiredItems,
+      currentSize: this.cache.size,
+      estimatedSize: validItems * 1024, // Estimate 1KB per item
     };
   }
 } 

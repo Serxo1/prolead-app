@@ -45,6 +45,7 @@ export interface LeadFilter {
     lat: number;
     lng: number;
   };
+  searchQuery?: string;
 }
 
 export interface GooglePlaceResult {
@@ -60,15 +61,22 @@ export interface GooglePlaceResult {
   types: string[];
   rating?: number;
   user_ratings_total?: number;
-  photos?: Array<{
+  photos?: {
     photo_reference: string;
     height: number;
     width: number;
-  }>;
+  }[];
   website?: string;
   formatted_phone_number?: string;
+  international_phone_number?: string;
   business_status?: string;
-  opening_hours?: {
-    open_now: boolean;
+  opening_hours?: google.maps.places.PlaceOpeningHours;
+  price_level?: number;
+  vicinity?: string;
+  url?: string;
+  reviews?: google.maps.places.PlaceReview[];
+  editorial_summary?: {
+    overview?: string;
+    language?: string;
   };
 } 

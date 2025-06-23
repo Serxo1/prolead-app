@@ -26,7 +26,11 @@ import {
   Trash2,
   User,
   DollarSign,
-  Users
+  Users,
+  AlertCircle,
+  CheckCircle,
+  Copy,
+  ExternalLink
 } from 'lucide-react';
 
 interface LeadDetailsProps {
@@ -37,11 +41,11 @@ interface LeadDetailsProps {
 }
 
 const STATUS_OPTIONS = [
-  { value: 'new', label: 'Novo', color: 'bg-blue-100 text-blue-800' },
-  { value: 'contacted', label: 'Contactado', color: 'bg-amber-100 text-amber-800' },
-  { value: 'qualified', label: 'Qualificado', color: 'bg-emerald-100 text-emerald-800' },
-  { value: 'converted', label: 'Convertido', color: 'bg-violet-100 text-violet-800' },
-  { value: 'lost', label: 'Perdido', color: 'bg-red-100 text-red-800' },
+  { value: 'new', label: 'Novo', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+  { value: 'contacted', label: 'Contactado', color: 'bg-amber-100 text-amber-800 border-amber-200' },
+  { value: 'qualified', label: 'Qualificado', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+  { value: 'converted', label: 'Convertido', color: 'bg-violet-100 text-violet-800 border-violet-200' },
+  { value: 'lost', label: 'Perdido', color: 'bg-red-100 text-red-800 border-red-200' },
 ];
 
 const COMPANY_SIZES = [
@@ -65,6 +69,7 @@ export default function LeadDetails({ lead, onClose, onLeadUpdate, onLeadDelete 
   const [isEditing, setIsEditing] = useState(false);
   const [editedLead, setEditedLead] = useState<Lead | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   useEffect(() => {
     if (lead) {
@@ -113,36 +118,85 @@ export default function LeadDetails({ lead, onClose, onLeadUpdate, onLeadDelete 
     });
   };
 
+  const copyToClipboard = async (text: string, fieldName: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(fieldName);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (err) {
+      console.error('Erro ao copiar:', err);
+    }
+  };
+
+  const isContactInfoAvailable = (value?: string) => {
+    return value && value.trim() !== '' && !value.toLowerCase().includes('desconhecido') && !value.toLowerCase().includes('não informado');
+  };
+
+  const getContactStatus = () => {
+    const hasEmail = isContactInfoAvailable(lead.email);
+    const hasPhone = isContactInfoAvailable(lead.phone);
+    const hasWebsite = isContactInfoAvailable(lead.website);
+    const hasContactPerson = isContactInfoAvailable(lead.contactPerson);
+    
+    const availableCount = [hasEmail, hasPhone, hasWebsite, hasContactPerson].filter(Boolean).length;
+    return { hasEmail, hasPhone, hasWebsite, hasContactPerson, availableCount };
+  };
+
+  const contactStatus = getContactStatus();
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="p-6">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold">{lead.name}</h2>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge className={STATUS_OPTIONS.find(s => s.value === lead.status)?.color}>
+          <div className="flex items-start justify-between mb-6 pb-4 border-b">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <h2 className="text-3xl font-bold text-gray-900">{lead.name}</h2>
+                <Badge className={`${STATUS_OPTIONS.find(s => s.value === lead.status)?.color} border`}>
                   {STATUS_OPTIONS.find(s => s.value === lead.status)?.label}
                 </Badge>
+              </div>
+              
+              <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
+                <div className="flex items-center gap-1">
+                  <MapPin className="h-4 w-4" />
+                  <span>{lead.address}</span>
+                </div>
                 {lead.rating && (
-                  <div className="flex items-center gap-1 text-sm text-gray-600">
-                    <Star className="h-4 w-4 text-yellow-500" />
-                    <span>{lead.rating}</span>
-                    {lead.reviews && <span>({lead.reviews})</span>}
+                  <div className="flex items-center gap-1">
+                    <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                    <span className="font-medium">{lead.rating}</span>
+                    {lead.reviews && <span className="text-gray-500">({lead.reviews} avaliações)</span>}
+                  </div>
+                )}
+              </div>
+
+              {/* Contact Status Indicator */}
+              <div className="flex items-center gap-2">
+                {contactStatus.availableCount > 0 ? (
+                  <div className="flex items-center gap-2 text-green-600 bg-green-50 px-3 py-1 rounded-full text-sm">
+                    <CheckCircle className="h-4 w-4" />
+                    <span>{contactStatus.availableCount} forma{contactStatus.availableCount > 1 ? 's' : ''} de contato disponível{contactStatus.availableCount > 1 ? 'is' : ''}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-1 rounded-full text-sm">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>Informações de contato limitadas</span>
                   </div>
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            
+            <div className="flex items-center gap-2 ml-4">
               {!isEditing ? (
-                <Button onClick={() => setIsEditing(true)} size="sm">
+                <Button onClick={() => setIsEditing(true)} size="sm" className="bg-blue-600 hover:bg-blue-700">
                   <Edit className="h-4 w-4 mr-2" />
                   Editar
                 </Button>
               ) : (
                 <>
-                  <Button onClick={handleSave} size="sm">
+                  <Button onClick={handleSave} size="sm" className="bg-green-600 hover:bg-green-700">
                     <Save className="h-4 w-4 mr-2" />
                     Salvar
                   </Button>
@@ -175,55 +229,321 @@ export default function LeadDetails({ lead, onClose, onLeadUpdate, onLeadDelete 
                 </DialogContent>
               </Dialog>
               <Button onClick={onClose} variant="ghost" size="sm">
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </Button>
             </div>
           </div>
 
-          <Tabs defaultValue="info" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="info">Informações</TabsTrigger>
+          <Tabs defaultValue="contact" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-6">
               <TabsTrigger value="contact">Contato</TabsTrigger>
+              <TabsTrigger value="info">Informações</TabsTrigger>
               <TabsTrigger value="notes">Anotações</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="info" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Basic Information */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Informações Básicas</CardTitle>
+            <TabsContent value="contact" className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Primary Contact Information */}
+                <Card className="border-2">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <User className="h-5 w-5 text-blue-600" />
+                      Contato Principal
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
-                      <label className="text-sm font-medium">Nome da Empresa</label>
+                      <label className="text-sm font-medium text-gray-700 mb-2 block">Pessoa de Contato</label>
+                      {isEditing ? (
+                        <Input
+                          value={editedLead.contactPerson || ''}
+                          onChange={(e) => handleFieldChange('contactPerson', e.target.value)}
+                          placeholder="Nome da pessoa de contato"
+                          className="w-full"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-gray-500" />
+                            <span className={isContactInfoAvailable(lead.contactPerson) ? 'text-gray-900' : 'text-gray-500 italic'}>
+                              {isContactInfoAvailable(lead.contactPerson) ? lead.contactPerson : 'Não informado'}
+                            </span>
+                          </div>
+                          {isContactInfoAvailable(lead.contactPerson) && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => copyToClipboard(lead.contactPerson!, 'contactPerson')}
+                              className="h-8 w-8 p-0"
+                            >
+                              {copiedField === 'contactPerson' ? (
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-2 block">Email</label>
+                      {isEditing ? (
+                        <Input
+                          type="email"
+                          value={editedLead.email || ''}
+                          onChange={(e) => handleFieldChange('email', e.target.value)}
+                          placeholder="email@empresa.com"
+                          className="w-full"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <Mail className={`h-4 w-4 ${isContactInfoAvailable(lead.email) ? 'text-blue-600' : 'text-gray-500'}`} />
+                            {isContactInfoAvailable(lead.email) ? (
+                              <a href={`mailto:${lead.email}`} className="text-blue-600 hover:underline font-medium">
+                                {lead.email}
+                              </a>
+                            ) : (
+                              <span className="text-gray-500 italic">Email não disponível</span>
+                            )}
+                          </div>
+                          {isContactInfoAvailable(lead.email) && (
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => copyToClipboard(lead.email!, 'email')}
+                                className="h-8 w-8 p-0"
+                              >
+                                {copiedField === 'email' ? (
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                asChild
+                                className="h-8 w-8 p-0"
+                              >
+                                <a href={`mailto:${lead.email}`}>
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-2 block">Telefone</label>
+                      {isEditing ? (
+                        <Input
+                          value={editedLead.phone || ''}
+                          onChange={(e) => handleFieldChange('phone', e.target.value)}
+                          placeholder="(11) 99999-9999"
+                          className="w-full"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <Phone className={`h-4 w-4 ${isContactInfoAvailable(lead.phone) ? 'text-green-600' : 'text-gray-500'}`} />
+                            {isContactInfoAvailable(lead.phone) ? (
+                              <a href={`tel:${lead.phone}`} className="text-green-600 hover:underline font-medium">
+                                {lead.phone}
+                              </a>
+                            ) : (
+                              <span className="text-gray-500 italic">Telefone não disponível</span>
+                            )}
+                          </div>
+                          {isContactInfoAvailable(lead.phone) && (
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => copyToClipboard(lead.phone!, 'phone')}
+                                className="h-8 w-8 p-0"
+                              >
+                                {copiedField === 'phone' ? (
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                asChild
+                                className="h-8 w-8 p-0"
+                              >
+                                <a href={`tel:${lead.phone}`}>
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Digital Presence */}
+                <Card className="border-2">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Globe className="h-5 w-5 text-purple-600" />
+                      Presença Digital
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-2 block">Website</label>
+                      {isEditing ? (
+                        <Input
+                          value={editedLead.website || ''}
+                          onChange={(e) => handleFieldChange('website', e.target.value)}
+                          placeholder="https://www.empresa.com"
+                          className="w-full"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <Globe className={`h-4 w-4 flex-shrink-0 ${isContactInfoAvailable(lead.website) ? 'text-purple-600' : 'text-gray-500'}`} />
+                            {isContactInfoAvailable(lead.website) ? (
+                              <a 
+                                href={lead.website} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-purple-600 hover:underline font-medium truncate"
+                              >
+                                {lead.website}
+                              </a>
+                            ) : (
+                              <span className="text-gray-500 italic">Website não disponível</span>
+                            )}
+                          </div>
+                          {isContactInfoAvailable(lead.website) && (
+                            <div className="flex gap-1 flex-shrink-0 ml-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => copyToClipboard(lead.website!, 'website')}
+                                className="h-8 w-8 p-0"
+                              >
+                                {copiedField === 'website' ? (
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                asChild
+                                className="h-8 w-8 p-0"
+                              >
+                                <a href={lead.website} target="_blank" rel="noopener noreferrer">
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Contact Summary */}
+                    <div className="pt-4 border-t">
+                      <label className="text-sm font-medium text-gray-700 mb-2 block">Resumo de Contato</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className={`flex items-center gap-2 p-2 rounded ${contactStatus.hasEmail ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-500'}`}>
+                          <Mail className="h-4 w-4" />
+                          <span className="text-sm">Email</span>
+                          {contactStatus.hasEmail ? (
+                            <CheckCircle className="h-4 w-4 ml-auto" />
+                          ) : (
+                            <X className="h-4 w-4 ml-auto" />
+                          )}
+                        </div>
+                        <div className={`flex items-center gap-2 p-2 rounded ${contactStatus.hasPhone ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-500'}`}>
+                          <Phone className="h-4 w-4" />
+                          <span className="text-sm">Telefone</span>
+                          {contactStatus.hasPhone ? (
+                            <CheckCircle className="h-4 w-4 ml-auto" />
+                          ) : (
+                            <X className="h-4 w-4 ml-auto" />
+                          )}
+                        </div>
+                        <div className={`flex items-center gap-2 p-2 rounded ${contactStatus.hasWebsite ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-500'}`}>
+                          <Globe className="h-4 w-4" />
+                          <span className="text-sm">Website</span>
+                          {contactStatus.hasWebsite ? (
+                            <CheckCircle className="h-4 w-4 ml-auto" />
+                          ) : (
+                            <X className="h-4 w-4 ml-auto" />
+                          )}
+                        </div>
+                        <div className={`flex items-center gap-2 p-2 rounded ${contactStatus.hasContactPerson ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-500'}`}>
+                          <User className="h-4 w-4" />
+                          <span className="text-sm">Contato</span>
+                          {contactStatus.hasContactPerson ? (
+                            <CheckCircle className="h-4 w-4 ml-auto" />
+                          ) : (
+                            <X className="h-4 w-4 ml-auto" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="info" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Basic Information */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Building className="h-5 w-5 text-blue-600" />
+                      Informações Básicas
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">Nome da Empresa</label>
                       {isEditing ? (
                         <Input
                           value={editedLead.name}
                           onChange={(e) => handleFieldChange('name', e.target.value)}
                         />
                       ) : (
-                        <p className="text-gray-700">{lead.name}</p>
+                        <p className="text-gray-900 font-medium">{lead.name}</p>
                       )}
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium">Endereço</label>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">Endereço</label>
                       {isEditing ? (
                         <Input
                           value={editedLead.address}
                           onChange={(e) => handleFieldChange('address', e.target.value)}
                         />
                       ) : (
-                        <div className="flex items-center gap-2 text-gray-700">
-                          <MapPin className="h-4 w-4" />
+                        <div className="flex items-start gap-2 text-gray-700">
+                          <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
                           <span>{lead.address}</span>
                         </div>
                       )}
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium">Tipo de Negócio</label>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">Tipo de Negócio</label>
                       {isEditing ? (
                         <Input
                           value={editedLead.businessType || ''}
@@ -239,7 +559,7 @@ export default function LeadDetails({ lead, onClose, onLeadUpdate, onLeadDelete 
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium">Indústria</label>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">Indústria</label>
                       {isEditing ? (
                         <Input
                           value={editedLead.industry || ''}
@@ -252,7 +572,7 @@ export default function LeadDetails({ lead, onClose, onLeadUpdate, onLeadDelete 
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium">Status</label>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">Status</label>
                       {isEditing ? (
                         <Select
                           value={editedLead.status}
@@ -270,7 +590,7 @@ export default function LeadDetails({ lead, onClose, onLeadUpdate, onLeadDelete 
                           </SelectContent>
                         </Select>
                       ) : (
-                        <Badge className={STATUS_OPTIONS.find(s => s.value === lead.status)?.color}>
+                        <Badge className={`${STATUS_OPTIONS.find(s => s.value === lead.status)?.color} border`}>
                           {STATUS_OPTIONS.find(s => s.value === lead.status)?.label}
                         </Badge>
                       )}
@@ -281,11 +601,14 @@ export default function LeadDetails({ lead, onClose, onLeadUpdate, onLeadDelete 
                 {/* Business Information */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Informações do Negócio</CardTitle>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <DollarSign className="h-5 w-5 text-green-600" />
+                      Informações do Negócio
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
-                      <label className="text-sm font-medium">Tamanho da Empresa</label>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">Tamanho da Empresa</label>
                       {isEditing ? (
                         <Select
                           value={editedLead.companySize || ''}
@@ -311,7 +634,7 @@ export default function LeadDetails({ lead, onClose, onLeadUpdate, onLeadDelete 
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium">Receita Anual</label>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">Receita Anual</label>
                       {isEditing ? (
                         <Select
                           value={editedLead.revenue || ''}
@@ -337,7 +660,7 @@ export default function LeadDetails({ lead, onClose, onLeadUpdate, onLeadDelete 
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium">Data de Criação</label>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">Data de Criação</label>
                       <div className="flex items-center gap-2 text-gray-700">
                         <Calendar className="h-4 w-4" />
                         <span>{formatDate(lead.createdAt)}</span>
@@ -345,7 +668,7 @@ export default function LeadDetails({ lead, onClose, onLeadUpdate, onLeadDelete 
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium">Última Atualização</label>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">Última Atualização</label>
                       <div className="flex items-center gap-2 text-gray-700">
                         <Calendar className="h-4 w-4" />
                         <span>{formatDate(lead.updatedAt)}</span>
@@ -354,7 +677,7 @@ export default function LeadDetails({ lead, onClose, onLeadUpdate, onLeadDelete 
 
                     {lead.lastContact && (
                       <div>
-                        <label className="text-sm font-medium">Último Contato</label>
+                        <label className="text-sm font-medium text-gray-700 mb-1 block">Último Contato</label>
                         <div className="flex items-center gap-2 text-gray-700">
                           <Calendar className="h-4 w-4" />
                           <span>{formatDate(lead.lastContact)}</span>
@@ -366,144 +689,54 @@ export default function LeadDetails({ lead, onClose, onLeadUpdate, onLeadDelete 
               </div>
             </TabsContent>
 
-            <TabsContent value="contact" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Informações de Contato</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium">Pessoa de Contato</label>
-                    {isEditing ? (
-                      <Input
-                        value={editedLead.contactPerson || ''}
-                        onChange={(e) => handleFieldChange('contactPerson', e.target.value)}
-                        placeholder="Nome da pessoa de contato"
-                      />
-                    ) : (
-                      <div className="flex items-center gap-2 text-gray-700">
-                        <User className="h-4 w-4" />
-                        <span>{lead.contactPerson || 'Não informado'}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Email</label>
-                    {isEditing ? (
-                      <Input
-                        type="email"
-                        value={editedLead.email || ''}
-                        onChange={(e) => handleFieldChange('email', e.target.value)}
-                        placeholder="email@empresa.com"
-                      />
-                    ) : (
-                      <div className="flex items-center gap-2 text-gray-700">
-                        <Mail className="h-4 w-4" />
-                        {lead.email ? (
-                          <a href={`mailto:${lead.email}`} className="text-blue-600 hover:underline">
-                            {lead.email}
-                          </a>
-                        ) : (
-                          <span>Não informado</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Telefone</label>
-                    {isEditing ? (
-                      <Input
-                        value={editedLead.phone || ''}
-                        onChange={(e) => handleFieldChange('phone', e.target.value)}
-                        placeholder="(11) 99999-9999"
-                      />
-                    ) : (
-                      <div className="flex items-center gap-2 text-gray-700">
-                        <Phone className="h-4 w-4" />
-                        {lead.phone ? (
-                          <a href={`tel:${lead.phone}`} className="text-blue-600 hover:underline">
-                            {lead.phone}
-                          </a>
-                        ) : (
-                          <span>Não informado</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Website</label>
-                    {isEditing ? (
-                      <Input
-                        value={editedLead.website || ''}
-                        onChange={(e) => handleFieldChange('website', e.target.value)}
-                        placeholder="https://www.empresa.com"
-                      />
-                    ) : (
-                      <div className="flex items-center gap-2 text-gray-700">
-                        <Globe className="h-4 w-4" />
-                        {lead.website ? (
-                          <a 
-                            href={lead.website} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline"
-                          >
-                            {lead.website}
-                          </a>
-                        ) : (
-                          <span>Não informado</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
             <TabsContent value="notes" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Anotações e Tags</CardTitle>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Tag className="h-5 w-5 text-orange-600" />
+                    Anotações e Tags
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                   <div>
-                    <label className="text-sm font-medium">Anotações</label>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">Anotações</label>
                     {isEditing ? (
                       <Textarea
                         value={editedLead.notes || ''}
                         onChange={(e) => handleFieldChange('notes', e.target.value)}
                         placeholder="Adicione suas anotações sobre este lead..."
-                        rows={4}
+                        rows={6}
+                        className="w-full"
                       />
                     ) : (
-                      <p className="text-gray-700 whitespace-pre-wrap">
-                        {lead.notes || 'Nenhuma anotação adicionada'}
-                      </p>
+                      <div className="bg-gray-50 p-4 rounded-lg min-h-[120px]">
+                        <p className="text-gray-700 whitespace-pre-wrap">
+                          {lead.notes || 'Nenhuma anotação adicionada'}
+                        </p>
+                      </div>
                     )}
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium">Tags</label>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">Tags</label>
                     {isEditing ? (
                       <Input
                         value={editedLead.tags?.join(', ') || ''}
                         onChange={(e) => handleFieldChange('tags', e.target.value.split(',').map(tag => tag.trim()).filter(Boolean))}
                         placeholder="tag1, tag2, tag3"
+                        className="w-full"
                       />
                     ) : (
                       <div className="flex flex-wrap gap-2">
                         {lead.tags && lead.tags.length > 0 ? (
                           lead.tags.map((tag, index) => (
-                            <Badge key={index} variant="secondary">
+                            <Badge key={index} variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
                               <Tag className="h-3 w-3 mr-1" />
                               {tag}
                             </Badge>
                           ))
                         ) : (
-                          <span className="text-gray-500">Nenhuma tag adicionada</span>
+                          <span className="text-gray-500 italic">Nenhuma tag adicionada</span>
                         )}
                       </div>
                     )}

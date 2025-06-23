@@ -12,19 +12,35 @@ export default function CacheStats() {
     valid: 0,
     expired: 0,
     placesKeys: 0,
+    currentSize: 0,
   });
   const [isExpanded, setIsExpanded] = useState(false);
 
   const updateStats = () => {
-    const generalStats = CacheService.getStats();
-    const placesStats = PlacesApiService.getCacheStats();
-    
-    setStats({
-      total: typeof generalStats.total === 'number' ? generalStats.total : 0,
-      valid: typeof generalStats.valid === 'number' ? generalStats.valid : 0,
-      expired: typeof generalStats.expired === 'number' ? generalStats.expired : 0,
-      placesKeys: typeof placesStats.placesKeys === 'number' ? placesStats.placesKeys : 0,
-    });
+    try {
+      const generalStats = CacheService.getStats();
+      const placesStats = PlacesApiService.getCacheStats();
+      
+      console.log('📊 Cache Stats RAW:', { generalStats, placesStats });
+      
+      setStats({
+        total: Number(generalStats.total) || 0,
+        valid: Number(generalStats.valid) || 0,
+        expired: Number(generalStats.expired) || 0,
+        placesKeys: Number(placesStats.placesKeys) || 0,
+        currentSize: Number(generalStats.currentSize) || 0,
+      });
+      
+      console.log('📊 Cache Stats PROCESSED:', {
+        total: Number(generalStats.total) || 0,
+        valid: Number(generalStats.valid) || 0,
+        expired: Number(generalStats.expired) || 0,
+        placesKeys: Number(placesStats.placesKeys) || 0,
+        currentSize: Number(generalStats.currentSize) || 0,
+      });
+    } catch (error) {
+      console.error('❌ Erro ao obter estatísticas do cache:', error);
+    }
   };
 
   useEffect(() => {
@@ -43,6 +59,15 @@ export default function CacheStats() {
 
   const clearPlacesCache = () => {
     PlacesApiService.clearCache();
+    updateStats();
+  };
+
+  const testCache = () => {
+    // Teste simples do cache
+    console.log('🧪 Testando cache...');
+    CacheService.set('test_key', { message: 'Hello Cache!' }, 60000);
+    const retrieved = CacheService.get('test_key');
+    console.log('🧪 Resultado do teste:', retrieved);
     updateStats();
   };
 
@@ -97,13 +122,16 @@ export default function CacheStats() {
         <div className="flex items-center gap-4 mb-3">
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="text-xs">
-              {stats.valid} valid
+              {stats.currentSize} itens
             </Badge>
             <Badge variant="outline" className="text-xs">
-              {stats.expired} expired
+              {stats.valid} válidos
             </Badge>
             <Badge variant="outline" className="text-xs">
-              {getCacheEfficiency()}% efficiency
+              {stats.expired} expirados
+            </Badge>
+            <Badge variant="outline" className="text-xs">
+              {stats.placesKeys} places
             </Badge>
           </div>
           
@@ -137,11 +165,19 @@ export default function CacheStats() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={testCache}
+                className="text-xs"
+              >
+                🧪 Testar Cache
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={clearPlacesCache}
                 className="text-xs"
               >
                 <Trash2 className="h-3 w-3 mr-1" />
-                Clear Places Cache
+                Limpar Places
               </Button>
               <Button
                 variant="destructive"
@@ -150,7 +186,7 @@ export default function CacheStats() {
                 className="text-xs"
               >
                 <Trash2 className="h-3 w-3 mr-1" />
-                Clear All Cache
+                Limpar Tudo
               </Button>
             </div>
           </div>

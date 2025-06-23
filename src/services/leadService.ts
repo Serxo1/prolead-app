@@ -74,10 +74,35 @@ export class LeadService {
     return true;
   }
 
-  static filterLeads(filters: LeadFilter): Lead[] {
-    const leads = this.getLeadsFromStorage();
+  static filterLeads(leads: Lead[], filters: LeadFilter): Lead[] {
     
     return leads.filter(lead => {
+      // Filter by search query (text search)
+      if (filters.searchQuery && filters.searchQuery.trim()) {
+        const query = filters.searchQuery.toLowerCase().trim();
+        const searchableFields = [
+          lead.name,
+          lead.address,
+          lead.description,
+          lead.businessType,
+          lead.industry,
+          lead.contactPerson,
+          lead.email,
+          lead.phone,
+          lead.website,
+          lead.notes,
+          ...(lead.tags || [])
+        ].filter(Boolean).map(field => field!.toLowerCase());
+        
+        const matchesQuery = searchableFields.some(field => 
+          field.includes(query)
+        );
+        
+        if (!matchesQuery) {
+          return false;
+        }
+      }
+      
       // Filter by business type
       if (filters.businessType && lead.businessType !== filters.businessType) {
         return false;
@@ -119,19 +144,35 @@ export class LeadService {
       }
       
       // Filter by contact information
-      if (filters.hasPhone && !lead.phone) {
+      if (filters.hasPhone === true && !lead.phone) {
         return false;
       }
       
-      if (filters.hasEmail && !lead.email) {
+      if (filters.hasPhone === false && lead.phone) {
         return false;
       }
       
-      if (filters.hasWebsite && !lead.website) {
+      if (filters.hasEmail === true && !lead.email) {
         return false;
       }
       
-      if (filters.hasContactPerson && !lead.contactPerson) {
+      if (filters.hasEmail === false && lead.email) {
+        return false;
+      }
+      
+      if (filters.hasWebsite === true && !lead.website) {
+        return false;
+      }
+      
+      if (filters.hasWebsite === false && lead.website) {
+        return false;
+      }
+      
+      if (filters.hasContactPerson === true && !lead.contactPerson) {
+        return false;
+      }
+      
+      if (filters.hasContactPerson === false && lead.contactPerson) {
         return false;
       }
       
